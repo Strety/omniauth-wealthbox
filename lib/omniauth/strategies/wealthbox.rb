@@ -1,10 +1,14 @@
+# frozen_string_literal: true
+
 require 'omniauth-oauth2'
 
 module OmniAuth
   module Strategies
-    class Wealthbox < OmniAuth::Strategies::OAuth2
+    class Wealthbox < OmniAuth::Strategies::OAuth2 # rubocop:disable Style/Documentation
+      USER_INFO_URL = 'https://api.crmworkspace.com/v1/me'
+
       option :client_options, {
-        site: 'https://app.crmworkspace.com',
+        site: 'https://api.crmworkspace.com',
         authorize_url: 'https://app.crmworkspace.com/oauth/authorize',
         token_url: 'https://app.crmworkspace.com/oauth/token'
       }
@@ -19,7 +23,7 @@ module OmniAuth
         end
       end
 
-      uid { raw_info['id'].to_s }
+      uid { me['id'].to_s }
 
       info do
         {
@@ -29,11 +33,18 @@ module OmniAuth
       end
 
       extra do
-        { raw_info: '' }
+        { raw_info: me }
       end
 
       def raw_info
-        @raw_info ||= access_token.params['data']
+        @raw_info ||= {}
+      end
+
+      def me
+        @me ||= begin
+          access_token.options[:mode] = :header
+          access_token.get(USER_INFO_URL, headers: { "Content-Type": 'application/json' }).parsed
+        end
       end
 
       def callback_url
